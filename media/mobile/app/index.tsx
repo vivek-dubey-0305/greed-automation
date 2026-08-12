@@ -1,6 +1,6 @@
 import { View, Text, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Plus } from 'lucide-react-native';
+import { Plus, Settings } from 'lucide-react-native';
 import { Screen } from '../src/components/Screen';
 import { Button } from '../src/components/Button';
 import { Card } from '../src/components/Card';
@@ -21,11 +21,21 @@ export default function HomeScreen() {
     <Screen>
       <ScrollView className="flex-1 px-4 pt-6" contentContainerStyle={{ paddingBottom: 40 }}>
         
-        <View className="mb-8">
-          <Text className="text-3xl font-bold text-slate-900 mb-2">Welcome Back</Text>
-          <Text className="text-base text-slate-500">
-            What are we automating today?
-          </Text>
+        <View className="flex-row justify-between items-start mb-8">
+          <View>
+            <Text className="text-3xl font-bold text-slate-900 mb-2">Welcome Back</Text>
+            <Text className="text-base text-slate-500">
+              What are we automating today?
+            </Text>
+          </View>
+          
+          <Button 
+            onPress={() => router.push('/settings')} 
+            variant="outline" 
+            className="p-3 w-12 h-12 items-center justify-center rounded-full"
+          >
+            <Settings size={20} className="text-slate-700" />
+          </Button>
         </View>
 
         <Button 
