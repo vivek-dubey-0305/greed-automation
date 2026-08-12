@@ -21,8 +21,9 @@ export class OAuthController {
     // Generate secure state
     const stateToken = crypto.randomBytes(32).toString('hex');
     
-    // For local dev with a physical device, use the PC's IP address instead of localhost.
-    const redirectUri = `http://192.168.1.6:3000/api/oauth/${platform}/callback`;
+    // Use Render URL for production, or fallback for local
+    const baseUrl = process.env.BACKEND_URL || 'https://greed-automation.onrender.com';
+    const redirectUri = `${baseUrl}/api/oauth/${platform}/callback`;
 
     // Persist state
     await db.insert(oauthStates).values({

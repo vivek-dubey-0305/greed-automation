@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
 // Use the local network IP for testing on physical devices. 192.168.1.6 is likely your Wi-Fi adapter.
-const API_URL = 'http://192.168.1.6:3000/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://greed-automation.onrender.com/api';
 
 export const api = {
   async get(endpoint: string) {
