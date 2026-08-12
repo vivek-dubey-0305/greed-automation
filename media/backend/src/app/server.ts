@@ -2,14 +2,20 @@ import { buildApp } from './app';
 import { env } from '../config/env';
 import { logger } from '../logger';
 
-import { registerMockAdapters } from '../integrations/mock.adapter';
+import { PlatformRegistry } from '../integrations/core/platform-registry';
+import { MetaAdapter } from '../integrations/meta.adapter';
+import { LinkedInAdapter } from '../integrations/linkedin.adapter';
+import { XAdapter } from '../integrations/x.adapter';
 
 // Initialize workers
 import '../queues/workers/automation.worker';
 import '../queues/workers/publishing.worker';
 
-// Register mock adapters for local testing
-registerMockAdapters();
+// Register real adapters
+PlatformRegistry.register('instagram', new MetaAdapter('instagram'));
+PlatformRegistry.register('facebook', new MetaAdapter('facebook'));
+PlatformRegistry.register('linkedin', new LinkedInAdapter());
+PlatformRegistry.register('x', new XAdapter());
 
 const app = buildApp();
 
