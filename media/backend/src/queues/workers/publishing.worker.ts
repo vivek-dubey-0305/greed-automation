@@ -49,7 +49,8 @@ export const publishingWorker = new Worker('publishing', async (job) => {
     const socialAccount = await db.query.socialAccounts.findFirst({
        where: and(
          eq(socialAccounts.userId, campaign.userId),
-         eq(socialAccounts.platform, lowerPlatform)
+         eq(socialAccounts.platform, lowerPlatform),
+         eq(socialAccounts.status, 'CONNECTED')
        )
     });
 
