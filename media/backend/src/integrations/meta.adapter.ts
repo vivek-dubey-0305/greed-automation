@@ -26,8 +26,8 @@ export class MetaAdapter implements PlatformAdapter {
 
   getAuthorizationUrl(state: string, redirectUri: string): string {
     const scopes = this.platform === 'instagram' 
-      ? ['instagram_basic', 'instagram_content_publish', 'pages_show_list', 'pages_read_engagement']
-      : ['pages_manage_posts', 'pages_read_engagement', 'pages_show_list'];
+      ? ['instagram_basic', 'instagram_content_publish', 'pages_show_list', 'pages_read_engagement', 'business_management']
+      : ['pages_manage_posts', 'pages_read_engagement', 'pages_show_list', 'business_management'];
       
     // Using standard Facebook Login for Business flow
     return `https://www.facebook.com/v19.0/dialog/oauth?client_id=${env.META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scopes.join(',')}`;
