@@ -29,8 +29,8 @@ export class MetaAdapter implements PlatformAdapter {
       ? ['instagram_basic', 'instagram_content_publish', 'pages_show_list', 'pages_read_engagement', 'business_management']
       : ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts', 'pages_manage_engagement', 'business_management'];
       
-    // Using standard Facebook Login for Business flow
-    return `https://www.facebook.com/v19.0/dialog/oauth?client_id=${env.META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scopes.join(',')}`;
+    // Using standard Facebook Login for Business flow with rerequest to prompt for missing permissions
+    return `https://www.facebook.com/v19.0/dialog/oauth?client_id=${env.META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scopes.join(',')}&auth_type=rerequest`;
   }
 
   async handleOAuthCallback(code: string, redirectUri: string): Promise<OAuthResult> {
@@ -127,16 +127,32 @@ export class MetaAdapter implements PlatformAdapter {
           return url;
         };
 
+        const isVideo = request.media.length > 0 && request.media[0].resourceType === 'video';
+        const isStory = request.postType === 'STORY';
+        const isReel = request.postType === 'REEL' || isVideo; // Default videos to reels for IG
+
         if (request.mediaUrls.length === 1) {
-          // Single Image
+          // Single Image or Video
+          const payload: any = {
+            caption: request.content,
+            access_token: request.accessToken
+          };
+
+          if (isStory) {
+            payload.media_type = 'STORIES';
+            if (isVideo) payload.video_url = getTransformedUrl(request.mediaUrls[0]);
+            else payload.image_url = getTransformedUrl(request.mediaUrls[0]);
+          } else if (isReel) {
+            payload.media_type = 'REELS';
+            payload.video_url = getTransformedUrl(request.mediaUrls[0]);
+          } else {
+            payload.image_url = getTransformedUrl(request.mediaUrls[0]);
+          }
+
           const containerRes = await fetch(`https://graph.facebook.com/v19.0/${request.socialAccountId}/media`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              image_url: getTransformedUrl(request.mediaUrls[0]),
-              caption: request.content,
-              access_token: request.accessToken
-            })
+            body: JSON.stringify(payload)
           });
 
           const containerData = await containerRes.json() as any;
@@ -227,6 +243,22 @@ export class MetaAdapter implements PlatformAdapter {
           if (!carouselRes.ok) throw new Error(`Carousel Create Error: ${carouselData.error?.message}`);
 
           // Publish carousel
+          // Wait for carousel container to be FINISHED before publishing
+          let isCarouselReady = false;
+          for (let i = 0; i < 15; i++) {
+            const statusRes = await fetch(`https://graph.facebook.com/v19.0/${carouselData.id}?fields=status_code&access_token=${request.accessToken}`);
+            const statusData = await statusRes.json() as any;
+            if (statusData.status_code === 'FINISHED') {
+              isCarouselReady = true;
+              break;
+            }
+            if (statusData.status_code === 'ERROR') {
+              throw new Error(`Carousel container ${carouselData.id} failed to process`);
+            }
+            await new Promise(r => setTimeout(r, 2000));
+          }
+          if (!isCarouselReady) throw new Error(`Carousel container processing timed out`);
+
           const publishRes = await fetch(`https://graph.facebook.com/v19.0/${request.socialAccountId}/media_publish`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -243,7 +275,23 @@ export class MetaAdapter implements PlatformAdapter {
         }
       } else {
         // Facebook Page Post
-        if (request.mediaUrls.length > 0) {
+        const hasVideo = request.media.some(m => m.resourceType === 'video');
+        
+        if (hasVideo && request.mediaUrls.length === 1) {
+          // Facebook Video Upload
+          const fbRes = await fetch(`https://graph.facebook.com/v19.0/${request.socialAccountId}/videos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              file_url: request.mediaUrls[0],
+              description: request.content,
+              access_token: request.accessToken
+            })
+          });
+          const fbData = await fbRes.json() as any;
+          if (!fbRes.ok) throw new Error(fbData.error?.message);
+          return { success: true, externalId: fbData.id };
+        } else if (request.mediaUrls.length > 0) {
           // Upload all photos unpublished
           const photoIds: string[] = [];
           for (const url of request.mediaUrls) {
@@ -303,6 +351,28 @@ export class MetaAdapter implements PlatformAdapter {
         error: error.message,
         retryable: true
       };
+    }
+  }
+
+  async deletePost(externalPostId: string, accessToken: string, socialAccountId: string): Promise<{ success: boolean; alreadyDeleted?: boolean; error?: string }> {
+    try {
+      const res = await fetch(`https://graph.facebook.com/v19.0/${externalPostId}?access_token=${accessToken}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json() as any;
+
+      if (!res.ok) {
+        // Check if the error indicates it was already deleted (Code 100: Object does not exist, etc.)
+        if (data.error?.code === 100 || data.error?.message?.toLowerCase().includes('does not exist')) {
+          return { success: true, alreadyDeleted: true };
+        }
+        throw new Error(data.error?.message || 'Unknown delete error');
+      }
+
+      return { success: true, alreadyDeleted: false };
+    } catch (error: any) {
+      logger.error({ error: error.message, externalPostId }, `Failed to delete post on ${this.platform}`);
+      return { success: false, error: error.message };
     }
   }
 }

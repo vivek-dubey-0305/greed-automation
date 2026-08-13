@@ -13,4 +13,5 @@ export interface PlatformAdapter {
   validateMedia(mediaUrls: string[]): boolean;
   validateContent(content: string, hashtags?: string[]): boolean;
   publish(request: PublishRequest): Promise<PublishResult>;
+  deletePost?(externalPostId: string, accessToken: string, socialAccountId: string): Promise<{ success: boolean; alreadyDeleted?: boolean; error?: string }>;
 }

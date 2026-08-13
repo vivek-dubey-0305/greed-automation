@@ -4,6 +4,7 @@ import { CONFIG } from '../constants/Config';
 
 interface CampaignStore {
   instruction: string;
+  postType: 'FEED' | 'STORY' | 'REEL';
   media: MediaAsset[];
   selectedPlatforms: PlatformName[];
   status: CampaignState;
@@ -11,6 +12,7 @@ interface CampaignStore {
   
   // Actions
   setInstruction: (instruction: string) => void;
+  setPostType: (postType: 'FEED' | 'STORY' | 'REEL') => void;
   addMedia: (assets: MediaAsset[]) => void;
   removeMedia: (id: string) => void;
   reorderMedia: (oldIndex: number, newIndex: number) => void;
@@ -28,12 +30,14 @@ interface CampaignStore {
 
 export const useCampaignStore = create<CampaignStore>()((set, get) => ({
   instruction: '',
+  postType: 'FEED',
   media: [],
   selectedPlatforms: [],
   status: 'DRAFT',
   platformPosts: {},
 
   setInstruction: (instruction) => set({ instruction }),
+  setPostType: (postType) => set({ postType }),
   
   addMedia: (assets) => set((state) => {
     const combined = [...state.media, ...assets];
@@ -92,6 +96,7 @@ export const useCampaignStore = create<CampaignStore>()((set, get) => ({
 
   resetCampaign: () => set({
     instruction: '',
+    postType: 'FEED',
     media: [],
     selectedPlatforms: [],
     status: 'DRAFT',

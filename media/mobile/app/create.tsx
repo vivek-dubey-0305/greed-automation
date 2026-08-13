@@ -17,6 +17,7 @@ export default function CreateCampaignScreen() {
   const { pickImages } = useMediaPicker();
   
   const instruction = useCampaignStore(state => state.instruction);
+  const postType = useCampaignStore(state => state.postType);
   const media = useCampaignStore(state => state.media);
   const selectedPlatforms = useCampaignStore(state => state.selectedPlatforms);
   
@@ -76,6 +77,30 @@ export default function CreateCampaignScreen() {
             multiline
             numberOfLines={4}
           />
+        </View>
+
+        {/* Post Type Selection */}
+        <View className="mb-6">
+          <Text className="text-sm font-medium text-slate-700 mb-3">Post Format</Text>
+          <View className="flex-row bg-slate-100 p-1 rounded-xl">
+            {(['FEED', 'STORY', 'REEL'] as const).map((type) => (
+              <TouchableOpacity
+                key={type}
+                onPress={() => useCampaignStore.getState().setPostType(type)}
+                className={cn(
+                  'flex-1 py-2.5 items-center rounded-lg',
+                  postType === type ? 'bg-white shadow-sm' : ''
+                )}
+              >
+                <Text className={cn(
+                  'font-medium text-sm',
+                  postType === type ? 'text-blue-600' : 'text-slate-600'
+                )}>
+                  {type.charAt(0) + type.slice(1).toLowerCase()}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         {/* Platform Selection */}
