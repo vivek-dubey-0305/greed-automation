@@ -143,6 +143,22 @@ export class MetaAdapter implements PlatformAdapter {
           console.log(`\n==============\n [META] IG Container Create API Response \n==============\n`, JSON.stringify(containerData, null, 2), `\n==============\n`);
           if (!containerRes.ok) throw new Error(containerData.error?.message);
 
+          // Wait for the container to be FINISHED
+          let isReady = false;
+          for (let i = 0; i < 15; i++) {
+            const statusRes = await fetch(`https://graph.facebook.com/v19.0/${containerData.id}?fields=status_code&access_token=${request.accessToken}`);
+            const statusData = await statusRes.json() as any;
+            if (statusData.status_code === 'FINISHED') {
+              isReady = true;
+              break;
+            }
+            if (statusData.status_code === 'ERROR') {
+              throw new Error(`Container ${containerData.id} failed to process`);
+            }
+            await new Promise(r => setTimeout(r, 2000));
+          }
+          if (!isReady) throw new Error(`Container ${containerData.id} processing timed out`);
+
           const publishRes = await fetch(`https://graph.facebook.com/v19.0/${request.socialAccountId}/media_publish`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -174,6 +190,25 @@ export class MetaAdapter implements PlatformAdapter {
             const containerData = await containerRes.json() as any;
             if (!containerRes.ok) throw new Error(`Carousel Item Error: ${containerData.error?.message}`);
             containerIds.push(containerData.id);
+          }
+
+          // Wait for all child containers to be FINISHED
+          for (const id of containerIds) {
+            let isReady = false;
+            for (let i = 0; i < 15; i++) {
+              const statusRes = await fetch(`https://graph.facebook.com/v19.0/${id}?fields=status_code&access_token=${request.accessToken}`);
+              const statusData = await statusRes.json() as any;
+              if (statusData.status_code === 'FINISHED') {
+                isReady = true;
+                break;
+              }
+              if (statusData.status_code === 'ERROR') {
+                throw new Error(`Child container ${id} failed to process`);
+              }
+              // Wait 2 seconds before polling again
+              await new Promise(r => setTimeout(r, 2000));
+            }
+            if (!isReady) throw new Error(`Child container ${id} processing timed out`);
           }
 
           // Create carousel container

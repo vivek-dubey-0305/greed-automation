@@ -12,6 +12,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 const PLATFORMS = [
   { id: 'instagram', name: 'Instagram', iconName: 'instagram', color: 'text-pink-500' },
+  { id: 'facebook', name: 'Facebook', iconName: 'facebook', color: 'text-blue-500' },
   { id: 'linkedin', name: 'LinkedIn', iconName: 'linkedin', color: 'text-blue-600' },
   { id: 'x', name: 'X (Twitter)', iconName: 'twitter', color: 'text-gray-900 dark:text-white' },
 ];
