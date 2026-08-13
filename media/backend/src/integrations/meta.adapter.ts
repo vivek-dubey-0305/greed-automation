@@ -26,7 +26,7 @@ export class MetaAdapter implements PlatformAdapter {
 
   getAuthorizationUrl(state: string, redirectUri: string): string {
     const scopes = this.platform === 'instagram' 
-      ? ['instagram_basic', 'instagram_content_publish', 'pages_show_list']
+      ? ['instagram_basic', 'instagram_content_publish', 'pages_show_list', 'pages_read_engagement']
       : ['pages_manage_posts', 'pages_read_engagement', 'pages_show_list'];
       
     // Using standard Facebook Login for Business flow
@@ -57,9 +57,11 @@ export class MetaAdapter implements PlatformAdapter {
     // For MVP we assume we are getting the user's primary page/IG account
     const accountsRes = await fetch(`https://graph.facebook.com/v19.0/me/accounts?access_token=${accessToken}`);
     const accountsData = await accountsRes.json() as any;
+    
+    console.log(`\n==============\n [META] /me/accounts Response \n==============\n`, JSON.stringify(accountsData, null, 2), `\n==============\n`);
 
     if (!accountsRes.ok || !accountsData.data || accountsData.data.length === 0) {
-      throw new Error(`Meta Account Error: Could not find any Facebook Pages linked to this user.`);
+      throw new Error(`Meta Account Error: Could not find any Facebook Pages linked to this user. Make sure you granted permissions for your Pages during login.`);
     }
 
     // Just take the first page for MVP
