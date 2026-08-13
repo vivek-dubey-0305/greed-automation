@@ -115,60 +115,149 @@ export class MetaAdapter implements PlatformAdapter {
 
     try {
       if (this.platform === 'instagram') {
-        // IG Graph API requires a 2-step process for media:
-        // 1. Create media container
-        // 2. Publish media container
-        
-        // For MVP, if no media, we fail (IG requires media)
         if (!request.mediaUrls.length) {
           throw new Error('Instagram requires at least one image/video.');
         }
 
-        const containerRes = await fetch(`https://graph.facebook.com/v19.0/${request.socialAccountId}/media`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            image_url: request.mediaUrls[0], // MVP: Single image
-            caption: request.content,
-            access_token: request.accessToken
-          })
-        });
+        // Apply aspect ratio transformation for Instagram (4:5 with black padding)
+        const getTransformedUrl = (url: string) => {
+          if (url.includes('res.cloudinary.com')) {
+            return url.replace(/\/upload\//, '/upload/c_pad,b_black,ar_4:5/');
+          }
+          return url;
+        };
 
-        const containerData = await containerRes.json() as any;
-        console.log(`\n==============\n [META] IG Container Create API Response \n==============\n`, JSON.stringify(containerData, null, 2), `\n==============\n`);
-        if (!containerRes.ok) throw new Error(containerData.error?.message);
+        if (request.mediaUrls.length === 1) {
+          // Single Image
+          const containerRes = await fetch(`https://graph.facebook.com/v19.0/${request.socialAccountId}/media`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              image_url: getTransformedUrl(request.mediaUrls[0]),
+              caption: request.content,
+              access_token: request.accessToken
+            })
+          });
 
-        const publishRes = await fetch(`https://graph.facebook.com/v19.0/${request.socialAccountId}/media_publish`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            creation_id: containerData.id,
-            access_token: request.accessToken
-          })
-        });
+          const containerData = await containerRes.json() as any;
+          console.log(`\n==============\n [META] IG Container Create API Response \n==============\n`, JSON.stringify(containerData, null, 2), `\n==============\n`);
+          if (!containerRes.ok) throw new Error(containerData.error?.message);
 
-        const publishData = await publishRes.json() as any;
-        console.log(`\n==============\n [META] IG Media Publish API Response \n==============\n`, JSON.stringify(publishData, null, 2), `\n==============\n`);
-        if (!publishRes.ok) throw new Error(publishData.error?.message);
+          const publishRes = await fetch(`https://graph.facebook.com/v19.0/${request.socialAccountId}/media_publish`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              creation_id: containerData.id,
+              access_token: request.accessToken
+            })
+          });
 
-        return { success: true, externalId: publishData.id };
+          const publishData = await publishRes.json() as any;
+          console.log(`\n==============\n [META] IG Media Publish API Response \n==============\n`, JSON.stringify(publishData, null, 2), `\n==============\n`);
+          if (!publishRes.ok) throw new Error(publishData.error?.message);
+
+          return { success: true, externalId: publishData.id };
+        } else {
+          // Carousel
+          const containerIds: string[] = [];
+          for (const url of request.mediaUrls) {
+            const containerRes = await fetch(`https://graph.facebook.com/v19.0/${request.socialAccountId}/media`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                image_url: getTransformedUrl(url),
+                is_carousel_item: true,
+                access_token: request.accessToken
+              })
+            });
+
+            const containerData = await containerRes.json() as any;
+            if (!containerRes.ok) throw new Error(`Carousel Item Error: ${containerData.error?.message}`);
+            containerIds.push(containerData.id);
+          }
+
+          // Create carousel container
+          const carouselRes = await fetch(`https://graph.facebook.com/v19.0/${request.socialAccountId}/media`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              media_type: 'CAROUSEL',
+              caption: request.content,
+              children: containerIds,
+              access_token: request.accessToken
+            })
+          });
+
+          const carouselData = await carouselRes.json() as any;
+          if (!carouselRes.ok) throw new Error(`Carousel Create Error: ${carouselData.error?.message}`);
+
+          // Publish carousel
+          const publishRes = await fetch(`https://graph.facebook.com/v19.0/${request.socialAccountId}/media_publish`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              creation_id: carouselData.id,
+              access_token: request.accessToken
+            })
+          });
+
+          const publishData = await publishRes.json() as any;
+          if (!publishRes.ok) throw new Error(`Carousel Publish Error: ${publishData.error?.message}`);
+
+          return { success: true, externalId: publishData.id };
+        }
       } else {
         // Facebook Page Post
-        const fbRes = await fetch(`https://graph.facebook.com/v19.0/${request.socialAccountId}/feed`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: request.content,
-            link: request.mediaUrls[0],
-            access_token: request.accessToken
-          })
-        });
+        if (request.mediaUrls.length > 0) {
+          // Upload all photos unpublished
+          const photoIds: string[] = [];
+          for (const url of request.mediaUrls) {
+            const photoRes = await fetch(`https://graph.facebook.com/v19.0/${request.socialAccountId}/photos`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                url: url,
+                published: false,
+                access_token: request.accessToken
+              })
+            });
+            const photoData = await photoRes.json() as any;
+            if (!photoRes.ok) throw new Error(`FB Photo Upload Error: ${photoData.error?.message}`);
+            photoIds.push(photoData.id);
+          }
 
-        const fbData = await fbRes.json() as any;
-        console.log(`\n==============\n [META] FB Feed Publish API Response \n==============\n`, JSON.stringify(fbData, null, 2), `\n==============\n`);
-        if (!fbRes.ok) throw new Error(fbData.error?.message);
+          // Post with attached media
+          const attachedMedia = photoIds.map(id => ({ media_fbid: id }));
+          const fbRes = await fetch(`https://graph.facebook.com/v19.0/${request.socialAccountId}/feed`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: request.content,
+              attached_media: attachedMedia,
+              access_token: request.accessToken
+            })
+          });
 
-        return { success: true, externalId: fbData.id };
+          const fbData = await fbRes.json() as any;
+          if (!fbRes.ok) throw new Error(fbData.error?.message);
+
+          return { success: true, externalId: fbData.id };
+        } else {
+          // Text only
+          const fbRes = await fetch(`https://graph.facebook.com/v19.0/${request.socialAccountId}/feed`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: request.content,
+              access_token: request.accessToken
+            })
+          });
+
+          const fbData = await fbRes.json() as any;
+          if (!fbRes.ok) throw new Error(fbData.error?.message);
+
+          return { success: true, externalId: fbData.id };
+        }
       }
 
     } catch (error: any) {

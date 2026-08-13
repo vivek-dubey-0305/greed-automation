@@ -24,7 +24,7 @@ export default function ResultScreen() {
     if (!campaignId) return;
     
     let mounted = true;
-    let pollInterval: NodeJS.Timeout;
+    let pollInterval: ReturnType<typeof setTimeout>;
 
     const checkStatus = async () => {
       try {

@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, Dimensions } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Screen } from '../src/components/Screen';
@@ -11,6 +12,9 @@ import { PLATFORMS } from '../src/constants/Platform';
 import { cn } from '../src/components/Button';
 import { PlatformPost } from '../src/types';
 import { api } from '../src/services/api';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const SLIDE_WIDTH = SCREEN_WIDTH - 64; // Account for screen px-4 and Card padding
 
 export default function PreviewScreen() {
   const router = useRouter();
@@ -138,12 +142,34 @@ export default function PreviewScreen() {
         </View>
 
         <Card className="mb-6">
-          {media[0] ? (
-            <Image 
-              source={{ uri: media[0].uri }} 
-              className="w-full h-40 rounded-lg mb-4"
-              resizeMode="cover"
-            />
+          {media.length > 0 ? (
+            <View>
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                className="w-full h-48 rounded-lg mb-4"
+                snapToInterval={SLIDE_WIDTH}
+                decelerationRate="fast"
+              >
+                {media.map((m, index) => (
+                  <View key={index} style={{ width: SLIDE_WIDTH }} className="h-48 rounded-lg overflow-hidden">
+                    <Image 
+                      source={{ uri: m.uri }} 
+                      contentFit="cover"
+                      style={{ width: '100%', height: '100%' }}
+                    />
+                  </View>
+                ))}
+              </ScrollView>
+              {media.length > 1 && (
+                <View className="flex-row justify-center gap-2 mb-4">
+                  {media.map((_, idx) => (
+                    <View key={idx} className="w-2 h-2 rounded-full bg-slate-300" />
+                  ))}
+                </View>
+              )}
+            </View>
           ) : (
             <View className="w-full h-40 bg-slate-100 rounded-lg border border-slate-200 items-center justify-center mb-4">
               <Text className="text-slate-400">Media Preview</Text>
