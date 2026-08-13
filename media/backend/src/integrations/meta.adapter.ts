@@ -346,10 +346,25 @@ export class MetaAdapter implements PlatformAdapter {
     } catch (error: any) {
       console.log(`\n==============\n [META] Publish Error \n==============\n`, error.message, `\n==============\n`);
       logger.error({ error: error.message }, `${this.platform} Publish failed`);
+      
+      let friendlyError = error.message;
+      let retryable = true;
+
+      // Detect Meta token / permission / app configuration errors
+      if (
+        friendlyError.includes('Cannot call API for app') || 
+        friendlyError.includes('OAuthException') ||
+        friendlyError.includes('Error validating access token') ||
+        friendlyError.includes('API access blocked')
+      ) {
+        friendlyError = `Your ${this.platform === 'facebook' ? 'Facebook' : 'Instagram'} account connection has expired or is blocked. Please go to your accounts, disconnect, and reconnect it. (Meta Error: ${error.message})`;
+        retryable = false; // No point in retrying an invalid token
+      }
+
       return {
         success: false,
-        error: error.message,
-        retryable: true
+        error: friendlyError,
+        retryable
       };
     }
   }
