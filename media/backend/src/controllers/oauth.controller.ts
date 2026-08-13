@@ -129,7 +129,10 @@ export class OAuthController {
   static async getConnectedAccounts(req: FastifyRequest, reply: FastifyReply) {
     const userId = await CampaignService.getOrCreateDefaultUser();
     const accounts = await db.query.socialAccounts.findMany({
-      where: eq(socialAccounts.userId, userId)
+      where: and(
+        eq(socialAccounts.userId, userId),
+        eq(socialAccounts.status, 'CONNECTED')
+      )
     });
     
     // NEVER return sensitive tokens to client
