@@ -55,6 +55,10 @@ export class MetaAdapter implements PlatformAdapter {
 
     // 3. Fetch user / page / ig_user info depending on platform
     // For MVP we assume we are getting the user's primary page/IG account
+    const permRes = await fetch(`https://graph.facebook.com/v19.0/me/permissions?access_token=${accessToken}`);
+    const permData = await permRes.json() as any;
+    console.log(`\n==============\n [META] /me/permissions Response \n==============\n`, JSON.stringify(permData, null, 2), `\n==============\n`);
+
     const accountsRes = await fetch(`https://graph.facebook.com/v19.0/me/accounts?access_token=${accessToken}`);
     const accountsData = await accountsRes.json() as any;
     
