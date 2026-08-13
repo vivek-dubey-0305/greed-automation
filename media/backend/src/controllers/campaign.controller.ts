@@ -77,3 +77,15 @@ export async function getCampaign(req: FastifyRequest<{ Params: { id: string } }
   const details = await CampaignService.getCampaignDetails(campaignId);
   return reply.status(200).send(formatSuccessResponse(details, req.id));
 }
+
+export async function listCampaigns(req: FastifyRequest, reply: FastifyReply) {
+  const campaigns = await CampaignService.listCampaigns();
+  return reply.status(200).send(formatSuccessResponse(campaigns, req.id));
+}
+
+export async function deleteCampaign(req: FastifyRequest<{ Params: { id: string }, Querystring: { deleteOnPlatforms?: string } }>, reply: FastifyReply) {
+  const campaignId = req.params.id;
+  const deleteOnPlatforms = req.query.deleteOnPlatforms === 'true';
+  await CampaignService.deleteCampaign(campaignId, deleteOnPlatforms);
+  return reply.status(200).send(formatSuccessResponse({ success: true }, req.id));
+}

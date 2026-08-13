@@ -15,7 +15,9 @@ export interface PublishRequest {
   campaignId: string;
   socialAccountId: string;
   content: string;
-  mediaUrls: string[];
+  mediaUrls: string[]; // Keep for backwards compatibility
+  media: { url: string; resourceType: string }[];
+  postType: string;
   hashtags?: string[];
   accessToken: string;
 }

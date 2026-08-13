@@ -12,6 +12,7 @@ export const campaigns = pgTable('campaigns', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').references(() => users.id).notNull(),
   instruction: text('instruction'),
+  postType: varchar('post_type', { length: 50 }).notNull().default('FEED'),
   status: varchar('status', { length: 50 }).notNull().default('DRAFT'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

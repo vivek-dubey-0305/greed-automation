@@ -66,8 +66,9 @@ export const publishingWorker = new Worker('publishing', async (job) => {
       where: eq(require('../../db/schema').mediaAssets.campaignId, campaign.id)
     });
     const mediaUrls = media.map(m => m.secureUrl);
+    const mediaDetails = media.map(m => ({ url: m.secureUrl, resourceType: m.resourceType }));
 
-    console.log(`\n==============\n [WORKER] Publishing to ${lowerPlatform} \n Username: ${socialAccount.username || socialAccount.displayName} \n External ID: ${socialAccount.externalAccountId} \n Media URLs: ${mediaUrls.join(', ')} \n==============\n`);
+    console.log(`\n==============\n [WORKER] Publishing to ${lowerPlatform} \n Username: ${socialAccount.username || socialAccount.displayName} \n External ID: ${socialAccount.externalAccountId} \n Post Type: ${campaign.postType} \n Media URLs: ${mediaUrls.join(', ')} \n==============\n`);
 
     // Get the platform adapter
     const adapter = PlatformRegistry.get(lowerPlatform);
@@ -79,6 +80,8 @@ export const publishingWorker = new Worker('publishing', async (job) => {
       socialAccountId: socialAccount.externalAccountId,
       content: postWithPlatform.content || '',
       mediaUrls,
+      media: mediaDetails,
+      postType: campaign.postType,
       hashtags: postWithPlatform.hashtags as string[] | undefined,
       accessToken,
     });

@@ -29,10 +29,10 @@ export const api = {
     return res.json();
   },
 
-  async createCampaign(instruction: string, platforms: string[]) {
+  async createCampaign(instruction: string, platforms: string[], postType: string = 'FEED') {
     // Backend enum expects uppercase
     const upperPlatforms = platforms.map(p => p.toUpperCase());
-    return this.post('/campaigns', { instruction, platforms: upperPlatforms });
+    return this.post('/campaigns', { instruction, platforms: upperPlatforms, postType });
   },
 
   async addMedia(campaignId: string, base64: string, resourceType: string = 'image', format: string = 'jpeg') {
@@ -45,6 +45,14 @@ export const api = {
 
   async getCampaign(campaignId: string) {
     return this.get(`/campaigns/${campaignId}`);
+  },
+
+  async getCampaigns() {
+    return this.get('/campaigns');
+  },
+
+  async deleteCampaign(campaignId: string, deleteOnPlatforms: boolean = false) {
+    return this.delete(`/campaigns/${campaignId}?deleteOnPlatforms=${deleteOnPlatforms}`);
   },
 
   async approvePost(postId: string) {

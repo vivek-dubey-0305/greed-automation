@@ -4,6 +4,7 @@ import { Platform } from '../domain/enums';
 export const createCampaignSchema = z.object({
   instruction: z.string().min(1),
   platforms: z.array(z.nativeEnum(Platform)).min(1),
+  postType: z.enum(['FEED', 'STORY', 'REEL']).optional(),
 });
 
 export const addMediaSchema = z.object({

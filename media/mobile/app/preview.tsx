@@ -12,6 +12,36 @@ import { PLATFORMS } from '../src/constants/Platform';
 import { cn } from '../src/components/Button';
 import { PlatformPost } from '../src/types';
 import { api } from '../src/services/api';
+import { useVideoPlayer, VideoView } from 'expo-video';
+
+function MediaSlide({ uri, type }: { uri: string, type: string }) {
+  const isVideo = type === 'video';
+  const player = useVideoPlayer(uri, player => {
+    player.loop = true;
+    player.play();
+  });
+
+  if (isVideo) {
+    return (
+      <View style={{ width: '100%', height: '100%' }}>
+        <VideoView 
+          player={player} 
+          style={{ width: '100%', height: '100%' }} 
+          allowsFullscreen={false}
+          allowsPictureInPicture={false}
+        />
+      </View>
+    );
+  }
+  
+  return (
+    <Image 
+      source={{ uri }} 
+      contentFit="cover"
+      style={{ width: '100%', height: '100%' }}
+    />
+  );
+}
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SLIDE_WIDTH = SCREEN_WIDTH - 64; // Account for screen px-4 and Card padding
@@ -29,6 +59,7 @@ export default function PreviewScreen() {
 
   const media = useCampaignStore(state => state.media);
   const instruction = useCampaignStore(state => state.instruction);
+  const postType = useCampaignStore(state => state.postType);
   
   const currentPost = platformPosts[activeTab];
   const platformConfig = PLATFORMS.find(p => p.id === activeTab);
@@ -59,12 +90,12 @@ export default function PreviewScreen() {
     
     try {
       // 1. Create campaign
-      const { data: { campaignId } } = await api.createCampaign(instruction, selectedPlatforms);
+      const { data: { campaignId } } = await api.createCampaign(instruction, selectedPlatforms, postType);
       
       // 2. Upload media
       for (const m of media) {
         if (m.base64) {
-           await api.addMedia(campaignId, m.base64, 'image', 'jpeg');
+           await api.addMedia(campaignId, m.base64, m.type || 'image', m.type === 'video' ? 'mp4' : 'jpeg');
         }
       }
       
@@ -148,17 +179,13 @@ export default function PreviewScreen() {
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
-                className="w-full h-48 rounded-lg mb-4"
+                className={cn('w-full rounded-lg mb-4', postType === 'STORY' || postType === 'REEL' ? 'h-96' : 'h-48')}
                 snapToInterval={SLIDE_WIDTH}
                 decelerationRate="fast"
               >
                 {media.map((m, index) => (
-                  <View key={index} style={{ width: SLIDE_WIDTH }} className="h-48 rounded-lg overflow-hidden">
-                    <Image 
-                      source={{ uri: m.uri }} 
-                      contentFit="cover"
-                      style={{ width: '100%', height: '100%' }}
-                    />
+                  <View key={index} style={{ width: SLIDE_WIDTH }} className={cn('rounded-lg overflow-hidden', postType === 'STORY' || postType === 'REEL' ? 'h-96' : 'h-48')}>
+                    <MediaSlide uri={m.uri} type={m.type || 'image'} />
                   </View>
                 ))}
               </ScrollView>
