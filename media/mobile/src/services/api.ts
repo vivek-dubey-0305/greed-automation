@@ -30,7 +30,9 @@ export const api = {
   },
 
   async createCampaign(instruction: string, platforms: string[]) {
-    return this.post('/campaigns', { instruction, platforms });
+    // Backend enum expects uppercase
+    const upperPlatforms = platforms.map(p => p.toUpperCase());
+    return this.post('/campaigns', { instruction, platforms: upperPlatforms });
   },
 
   async addMedia(campaignId: string, base64: string, resourceType: string = 'image', format: string = 'jpeg') {

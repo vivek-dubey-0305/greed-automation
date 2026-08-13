@@ -37,6 +37,7 @@ export const publishingWorker = new Worker('publishing', async (job) => {
     if (!postWithPlatform) throw new Error('Post not found');
 
     const platform = postWithPlatform.campaignPlatform.platform;
+    const lowerPlatform = platform.toLowerCase();
     
     // Find social account for user
     const campaign = await db.query.campaigns.findFirst({
@@ -48,12 +49,12 @@ export const publishingWorker = new Worker('publishing', async (job) => {
     const socialAccount = await db.query.socialAccounts.findFirst({
        where: and(
          eq(socialAccounts.userId, campaign.userId),
-         eq(socialAccounts.platform, platform)
+         eq(socialAccounts.platform, lowerPlatform)
        )
     });
 
     if (!socialAccount) {
-      throw new Error(`User does not have a connected ${platform} account`);
+      throw new Error(`User does not have a connected ${lowerPlatform} account`);
     }
 
     // Get valid access token
@@ -65,10 +66,10 @@ export const publishingWorker = new Worker('publishing', async (job) => {
     });
     const mediaUrls = media.map(m => m.secureUrl);
 
-    console.log(`\n==============\n [WORKER] Publishing to ${platform} \n Username: ${socialAccount.username || socialAccount.displayName} \n External ID: ${socialAccount.externalAccountId} \n Media URLs: ${mediaUrls.join(', ')} \n==============\n`);
+    console.log(`\n==============\n [WORKER] Publishing to ${lowerPlatform} \n Username: ${socialAccount.username || socialAccount.displayName} \n External ID: ${socialAccount.externalAccountId} \n Media URLs: ${mediaUrls.join(', ')} \n==============\n`);
 
     // Get the platform adapter
-    const adapter = PlatformRegistry.get(platform);
+    const adapter = PlatformRegistry.get(lowerPlatform);
     
     // Publish
     const result = await adapter.publish({

@@ -34,7 +34,8 @@ export default function ResultScreen() {
         let allDone = true;
 
         data.platforms.forEach((cp: any) => {
-          const platform = cp.platform;
+          // Backend returns uppercase, frontend expects lowercase
+          const platform = cp.platform.toLowerCase();
           const post = data.posts.find((p: any) => p.campaignPlatformId === cp.id);
           
           if (!post) {
