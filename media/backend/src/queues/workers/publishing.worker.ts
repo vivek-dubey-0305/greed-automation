@@ -66,7 +66,7 @@ export const publishingWorker = new Worker('publishing', async (job) => {
     const result = await adapter.publish({
       platformPostId: postId,
       campaignId: campaign.id,
-      socialAccountId: socialAccount.id,
+      socialAccountId: socialAccount.externalAccountId,
       content: postWithPlatform.content || '',
       mediaUrls: [], // TODO: fetch from media_assets
       hashtags: postWithPlatform.hashtags as string[] | undefined,
