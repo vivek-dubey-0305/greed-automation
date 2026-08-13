@@ -14,12 +14,15 @@ export class OAuthController {
     // Hardcode user id for MVP (or get from req.user if auth middleware existed)
     const userId = await CampaignService.getOrCreateDefaultUser();
     const { platform } = req.params as { platform: string };
+    const { returnUrl } = req.query as { returnUrl?: string };
     
     // Validate adapter exists
     const adapter = PlatformRegistry.get(platform);
     
-    // Generate secure state
-    const stateToken = crypto.randomBytes(32).toString('hex');
+    // Generate secure state and encode returnUrl inside it
+    const randomHex = crypto.randomBytes(16).toString('hex');
+    const stateObj = { h: randomHex, r: returnUrl || `greedsocial://oauth` };
+    const stateToken = Buffer.from(JSON.stringify(stateObj)).toString('base64url');
     
     // Use Render URL for production, or fallback for local
     const baseUrl = process.env.BACKEND_URL || 'https://greed-automation.onrender.com';
@@ -58,6 +61,15 @@ export class OAuthController {
 
     if (!oauthState) {
       return reply.redirect(`greedsocial://oauth?status=error&message=Invalid_State`);
+    }
+
+    // Decode returnUrl from stateToken
+    let returnUrl = `greedsocial://oauth`;
+    try {
+      const decoded = JSON.parse(Buffer.from(state, 'base64url').toString('utf8'));
+      if (decoded.r) returnUrl = decoded.r;
+    } catch (e) {
+      // Ignore parsing errors, fallback to default
     }
 
     if (oauthState.expiresAt < new Date()) {
@@ -106,11 +118,11 @@ export class OAuthController {
       // Cleanup state
       await db.delete(oauthStates).where(eq(oauthStates.id, oauthState.id));
 
-      // Deep link to Expo success
-      return reply.redirect(`greedsocial://oauth?status=success&platform=${platform}`);
+      // Deep link to the returnUrl
+      return reply.redirect(`${returnUrl}?status=success&platform=${platform}`);
     } catch (e: any) {
       req.log.error({ err: e.message, platform }, 'OAuth Callback Failed');
-      return reply.redirect(`greedsocial://oauth?status=error&message=Code_Exchange_Failed`);
+      return reply.redirect(`${returnUrl}?status=error&message=Code_Exchange_Failed`);
     }
   }
 

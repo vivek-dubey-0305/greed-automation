@@ -25,12 +25,12 @@ export default function SettingsScreen() {
 
   const handleConnect = async (platformId: string) => {
     try {
-      // 1. Get the auth URL from backend
-      const res = await api.get(`/oauth/${platformId}/url`);
-      if (!res.url) throw new Error('No URL returned from backend');
+      // 1. Determine return URL for Expo
+      const returnUrl = Linking.createURL('oauth'); // e.g. exp://192.168.1.6:8081/--/oauth
 
-      // 2. Open WebBrowser
-      const returnUrl = Linking.createURL('oauth'); // e.g. greedsocial://oauth
+      // 2. Get the auth URL from backend, passing the returnUrl
+      const res = await api.get(`/oauth/${platformId}/url?returnUrl=${encodeURIComponent(returnUrl)}`);
+      if (!res.url) throw new Error('No URL returned from backend');
       
       const authRes = await WebBrowser.openAuthSessionAsync(res.url, returnUrl);
       
