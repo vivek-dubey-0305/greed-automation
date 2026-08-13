@@ -55,16 +55,44 @@ export class MetaAdapter implements PlatformAdapter {
 
     // 3. Fetch user / page / ig_user info depending on platform
     // For MVP we assume we are getting the user's primary page/IG account
-    const meRes = await fetch(`https://graph.facebook.com/v19.0/me?fields=id,name&access_token=${accessToken}`);
-    const meData = await meRes.json() as any;
+    const accountsRes = await fetch(`https://graph.facebook.com/v19.0/me/accounts?access_token=${accessToken}`);
+    const accountsData = await accountsRes.json() as any;
 
-    return {
-      accessToken,
-      expiresIn,
-      externalAccountId: meData.id,
-      displayName: meData.name,
-      username: meData.name,
-    };
+    if (!accountsRes.ok || !accountsData.data || accountsData.data.length === 0) {
+      throw new Error(`Meta Account Error: Could not find any Facebook Pages linked to this user.`);
+    }
+
+    // Just take the first page for MVP
+    const page = accountsData.data[0];
+    const pageId = page.id;
+    const pageAccessToken = page.access_token;
+    const pageName = page.name;
+
+    if (this.platform === 'facebook') {
+      return {
+        accessToken: pageAccessToken,
+        expiresIn,
+        externalAccountId: pageId,
+        displayName: pageName,
+        username: pageName,
+      };
+    } else {
+      // Instagram: Get the linked IG Business Account
+      const igRes = await fetch(`https://graph.facebook.com/v19.0/${pageId}?fields=instagram_business_account&access_token=${pageAccessToken}`);
+      const igData = await igRes.json() as any;
+      
+      if (!igRes.ok || !igData.instagram_business_account) {
+        throw new Error(`Meta Account Error: Could not find a linked Instagram Business Account for page ${pageName}.`);
+      }
+
+      return {
+        accessToken: pageAccessToken, // IG API uses the Page access token
+        expiresIn,
+        externalAccountId: igData.instagram_business_account.id,
+        displayName: `${pageName} (Instagram)`,
+        username: pageName,
+      };
+    }
   }
 
   validateMedia(mediaUrls: string[]): boolean {
