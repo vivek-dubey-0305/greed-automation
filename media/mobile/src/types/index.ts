@@ -43,6 +43,7 @@ export interface MediaAsset {
   uri: string;
   type?: string;
   filename?: string;
+  base64?: string;
   width?: number;
   height?: number;
   size?: number;

@@ -101,6 +101,7 @@ export class MetaAdapter implements PlatformAdapter {
         });
 
         const containerData = await containerRes.json() as any;
+        console.log(`\n==============\n [META] IG Container Create API Response \n==============\n`, JSON.stringify(containerData, null, 2), `\n==============\n`);
         if (!containerRes.ok) throw new Error(containerData.error?.message);
 
         const publishRes = await fetch(`https://graph.facebook.com/v19.0/${request.socialAccountId}/media_publish`, {
@@ -113,6 +114,7 @@ export class MetaAdapter implements PlatformAdapter {
         });
 
         const publishData = await publishRes.json() as any;
+        console.log(`\n==============\n [META] IG Media Publish API Response \n==============\n`, JSON.stringify(publishData, null, 2), `\n==============\n`);
         if (!publishRes.ok) throw new Error(publishData.error?.message);
 
         return { success: true, externalId: publishData.id };
@@ -129,12 +131,14 @@ export class MetaAdapter implements PlatformAdapter {
         });
 
         const fbData = await fbRes.json() as any;
+        console.log(`\n==============\n [META] FB Feed Publish API Response \n==============\n`, JSON.stringify(fbData, null, 2), `\n==============\n`);
         if (!fbRes.ok) throw new Error(fbData.error?.message);
 
         return { success: true, externalId: fbData.id };
       }
 
     } catch (error: any) {
+      console.log(`\n==============\n [META] Publish Error \n==============\n`, error.message, `\n==============\n`);
       logger.error({ error: error.message }, `${this.platform} Publish failed`);
       return {
         success: false,

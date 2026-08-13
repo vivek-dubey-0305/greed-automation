@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Screen } from '../src/components/Screen';
@@ -10,6 +10,7 @@ import { useCampaignStore } from '../src/store/useCampaignStore';
 import { PLATFORMS } from '../src/constants/Platform';
 import { cn } from '../src/components/Button';
 import { PlatformPost } from '../src/types';
+import { api } from '../src/services/api';
 
 export default function PreviewScreen() {
   const router = useRouter();
@@ -20,6 +21,10 @@ export default function PreviewScreen() {
   const [activeTab, setActiveTab] = useState(selectedPlatforms[0]);
   const [isEditing, setIsEditing] = useState(false);
   const [editCaption, setEditCaption] = useState('');
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  const media = useCampaignStore(state => state.media);
+  const instruction = useCampaignStore(state => state.instruction);
   
   const currentPost = platformPosts[activeTab];
   const platformConfig = PLATFORMS.find(p => p.id === activeTab);
@@ -44,8 +49,32 @@ export default function PreviewScreen() {
     p => platformPosts[p]?.status === 'APPROVED'
   );
 
-  const handlePublish = () => {
-    router.push('/result');
+  const handlePublish = async () => {
+    if (isPublishing) return;
+    setIsPublishing(true);
+    
+    try {
+      // 1. Create campaign
+      const { data: { campaignId } } = await api.createCampaign(instruction, selectedPlatforms);
+      
+      // 2. Upload media
+      for (const m of media) {
+        if (m.base64) {
+           await api.addMedia(campaignId, m.base64, 'image', 'jpeg');
+        }
+      }
+      
+      // 3. Start campaign
+      await api.startCampaign(campaignId);
+      
+      // Navigate to result with campaignId
+      router.push({ pathname: '/result', params: { campaignId } });
+    } catch (error: any) {
+      console.error('Publish error:', error);
+      Alert.alert('Publish Failed', error.message || 'An error occurred');
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   if (!currentPost) {
@@ -109,10 +138,17 @@ export default function PreviewScreen() {
         </View>
 
         <Card className="mb-6">
-          {/* Media placeholder (we'd render ImageGrid here in a real app, but smaller) */}
-          <View className="w-full h-40 bg-slate-100 rounded-lg border border-slate-200 items-center justify-center mb-4">
-            <Text className="text-slate-400">Media Preview</Text>
-          </View>
+          {media[0] ? (
+            <Image 
+              source={{ uri: media[0].uri }} 
+              className="w-full h-40 rounded-lg mb-4"
+              resizeMode="cover"
+            />
+          ) : (
+            <View className="w-full h-40 bg-slate-100 rounded-lg border border-slate-200 items-center justify-center mb-4">
+              <Text className="text-slate-400">Media Preview</Text>
+            </View>
+          )}
 
           {isEditing ? (
             <TextInput
@@ -147,12 +183,12 @@ export default function PreviewScreen() {
       {/* Footer */}
       <View className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200">
         <Button
-          title={allApproved ? 'Publish Now' : 'Approve All & Publish'}
+          title={isPublishing ? 'Publishing...' : (allApproved ? 'Publish Now' : 'Approve All & Publish')}
           onPress={() => {
             selectedPlatforms.forEach(p => handleApprove(p));
             handlePublish();
           }}
-          disabled={isEditing}
+          disabled={isEditing || isPublishing}
         />
       </View>
     </Screen>

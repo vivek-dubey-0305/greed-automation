@@ -1,5 +1,5 @@
 import { View, Text, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Screen } from '../src/components/Screen';
 import { Button } from '../src/components/Button';
@@ -7,9 +7,11 @@ import { Card } from '../src/components/Card';
 import { StatusBadge } from '../src/components/StatusBadge';
 import { useCampaignStore } from '../src/store/useCampaignStore';
 import { PLATFORMS } from '../src/constants/Platform';
+import { api } from '../src/services/api';
 
 export default function ResultScreen() {
   const router = useRouter();
+  const { campaignId } = useLocalSearchParams<{ campaignId: string }>();
   const selectedPlatforms = useCampaignStore(state => state.selectedPlatforms);
   const platformPosts = useCampaignStore(state => state.platformPosts);
   const updatePlatformPost = useCampaignStore(state => state.updatePlatformPost);
@@ -17,45 +19,70 @@ export default function ResultScreen() {
   
   const [isSimulating, setIsSimulating] = useState(true);
 
-  // Simulate Publishing
+  // Poll backend for actual campaign status
   useEffect(() => {
-    let mounted = true;
+    if (!campaignId) return;
     
-    selectedPlatforms.forEach((platform, index) => {
-      // Set to publishing immediately
-      updatePlatformPost(platform, { status: 'PUBLISHING' });
+    let mounted = true;
+    let pollInterval: NodeJS.Timeout;
 
-      // Simulate network response
-      setTimeout(() => {
-        if (!mounted) return;
+    const checkStatus = async () => {
+      try {
+        const { data } = await api.getCampaign(campaignId);
         
-        // Randomly simulate a failure or warning for demonstration
-        // Just fail Facebook if it's there to show the retry UI, else succeed.
-        if (platform === 'facebook') {
-          updatePlatformPost(platform, { 
-            status: 'FAILED',
-            error: {
-              code: 'AUTH_EXPIRED',
-              category: 'AUTHENTICATION',
-              userMessage: 'Facebook session expired.',
-              retryable: true
-            }
-          });
-        } else if (platform === 'x') {
-           updatePlatformPost(platform, { status: 'WARNING', warning: 'Media resolution downgraded' });
-        } else {
-          updatePlatformPost(platform, { status: 'SUCCESS' });
-        }
-        
-        // End simulation after last item
-        if (index === selectedPlatforms.length - 1) {
+        // Map backend state to frontend state
+        let allDone = true;
+
+        data.platforms.forEach((cp: any) => {
+          const platform = cp.platform;
+          const post = data.posts.find((p: any) => p.campaignPlatformId === cp.id);
+          
+          if (!post) {
+            updatePlatformPost(platform, { status: 'PUBLISHING' });
+            allDone = false;
+            return;
+          }
+
+          if (post.status === 'PUBLISHED') {
+             updatePlatformPost(platform, { status: 'SUCCESS' });
+          } else if (post.status === 'FAILED') {
+             // Find attempt error
+             const attempt = data.attempts.find((a: any) => a.platformPostId === post.id && a.status === 'FAILED');
+             updatePlatformPost(platform, { 
+               status: 'FAILED',
+               error: {
+                 code: 'PUBLISH_ERROR',
+                 category: 'UNKNOWN',
+                 userMessage: attempt?.error || 'Failed to publish post',
+                 retryable: false
+               }
+             });
+          } else {
+             updatePlatformPost(platform, { status: 'PUBLISHING' });
+             allDone = false;
+          }
+        });
+
+        if (allDone && mounted) {
           setIsSimulating(false);
+          clearInterval(pollInterval);
         }
-      }, 1500 + (index * 1000));
-    });
+      } catch (err) {
+        console.error('Polling error:', err);
+      }
+    };
 
-    return () => { mounted = false; };
-  }, []);
+    // Initial check
+    checkStatus();
+    
+    // Poll every 3 seconds
+    pollInterval = setInterval(checkStatus, 3000);
+
+    return () => { 
+      mounted = false; 
+      clearInterval(pollInterval);
+    };
+  }, [campaignId]);
 
   const handleRetry = (platformId: string) => {
     updatePlatformPost(platformId, { status: 'RETRYING' });

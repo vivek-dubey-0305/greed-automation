@@ -22,6 +22,7 @@ export const useMediaPicker = () => {
         allowsMultipleSelection: true,
         selectionLimit: CONFIG.MAX_IMAGES - currentCount,
         quality: 0.8,
+        base64: true,
       });
 
       if (result.canceled) {
@@ -34,6 +35,7 @@ export const useMediaPicker = () => {
         uri: asset.uri,
         type: asset.type || undefined,
         filename: asset.fileName || `image-${Date.now()}-${index}.jpg`,
+        base64: asset.base64 || undefined,
         width: asset.width,
         height: asset.height,
         size: asset.fileSize,

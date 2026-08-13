@@ -13,10 +13,45 @@ export async function createCampaign(req: FastifyRequest, reply: FastifyReply) {
 
 export async function addMedia(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {
   const campaignId = req.params.id;
-  const data = addMediaSchema.parse(req.body); // In real scenario, handle multipart upload or base64. Here we just expect URL for simplicity or use cloudinary service
+  const data = addMediaSchema.parse(req.body); 
   
   const asset = await CampaignService.addMediaAsset(campaignId, data);
   return reply.status(200).send(formatSuccessResponse(asset, req.id));
+}
+
+export async function uploadBase64Media(req: FastifyRequest<{ Params: { id: string }, Body: { base64: string, resourceType: string, format: string } }>, reply: FastifyReply) {
+  const campaignId = req.params.id;
+  const { base64, resourceType, format } = req.body;
+  
+  const cloudinary = require('cloudinary').v2;
+  
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+  });
+  
+  try {
+    const result = await cloudinary.uploader.upload(`data:image/${format};base64,${base64}`, {
+      resource_type: resourceType || 'auto',
+      folder: `greed-automation/campaigns/${campaignId}`
+    });
+    
+    const asset = await CampaignService.addMediaAsset(campaignId, {
+      publicId: result.public_id,
+      secureUrl: result.secure_url,
+      resourceType: result.resource_type,
+      format: result.format,
+      width: result.width,
+      height: result.height,
+      bytes: result.bytes
+    });
+    
+    return reply.status(200).send(formatSuccessResponse(asset, req.id));
+  } catch (error: any) {
+    req.log.error({ error: error.message }, 'Cloudinary upload failed');
+    return reply.status(500).send({ success: false, error: 'Failed to upload image' });
+  }
 }
 
 export async function startCampaign(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) {

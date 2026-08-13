@@ -27,5 +27,21 @@ export const api = {
     });
     if (!res.ok) throw new Error(`API Error: ${res.status}`);
     return res.json();
+  },
+
+  async createCampaign(instruction: string, platforms: string[]) {
+    return this.post('/campaigns', { instruction, platforms });
+  },
+
+  async addMedia(campaignId: string, base64: string, resourceType: string = 'image', format: string = 'jpeg') {
+    return this.post(`/campaigns/${campaignId}/upload-base64`, { base64, resourceType, format });
+  },
+
+  async startCampaign(campaignId: string) {
+    return this.post(`/campaigns/${campaignId}/start`, {});
+  },
+
+  async getCampaign(campaignId: string) {
+    return this.get(`/campaigns/${campaignId}`);
   }
 };

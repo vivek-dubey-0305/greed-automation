@@ -59,6 +59,14 @@ export const publishingWorker = new Worker('publishing', async (job) => {
     // Get valid access token
     const accessToken = await TokenService.getValidAccessToken(socialAccount.id);
 
+    // Fetch media
+    const media = await db.query.mediaAssets.findMany({
+      where: eq(require('../../db/schema').mediaAssets.campaignId, campaign.id)
+    });
+    const mediaUrls = media.map(m => m.secureUrl);
+
+    console.log(`\n==============\n [WORKER] Publishing to ${platform} \n Username: ${socialAccount.username || socialAccount.displayName} \n External ID: ${socialAccount.externalAccountId} \n Media URLs: ${mediaUrls.join(', ')} \n==============\n`);
+
     // Get the platform adapter
     const adapter = PlatformRegistry.get(platform);
     
@@ -68,7 +76,7 @@ export const publishingWorker = new Worker('publishing', async (job) => {
       campaignId: campaign.id,
       socialAccountId: socialAccount.externalAccountId,
       content: postWithPlatform.content || '',
-      mediaUrls: [], // TODO: fetch from media_assets
+      mediaUrls,
       hashtags: postWithPlatform.hashtags as string[] | undefined,
       accessToken,
     });
@@ -76,6 +84,8 @@ export const publishingWorker = new Worker('publishing', async (job) => {
     if (!result.success) {
       throw new Error(result.error || 'Unknown publishing error');
     }
+    
+    console.log(`\n==============\n [WORKER] Publish SUCCESS \n Platform: ${platform} \n External Post ID: ${result.externalId} \n==============\n`);
 
     // Success
     await db.update(publishAttempts).set({ status: PublishAttemptStatus.SUCCESS, externalId: result.externalId }).where(eq(publishAttempts.id, attempt.id));
@@ -95,6 +105,7 @@ export const publishingWorker = new Worker('publishing', async (job) => {
     logger.info({ requestId, postId }, 'Publishing job succeeded');
     return { success: true };
   } catch (error: any) {
+    console.log(`\n==============\n [WORKER] Publish FAILED \n Error: ${error.message} \n==============\n`);
     logger.error({ requestId, postId, error }, 'Publishing job failed');
     await db.update(publishAttempts).set({ status: PublishAttemptStatus.FAILED, error: error.message }).where(eq(publishAttempts.id, attempt.id));
     await db.update(platformPosts).set({ status: PlatformPostStatus.FAILED }).where(eq(platformPosts.id, postId));

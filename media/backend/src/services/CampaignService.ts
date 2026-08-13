@@ -102,10 +102,27 @@ export class CampaignService {
     const platforms = await db.select().from(campaignPlatforms).where(eq(campaignPlatforms.campaignId, campaignId));
     const media = await db.select().from(mediaAssets).where(eq(mediaAssets.campaignId, campaignId));
     
+    // Get posts for these platforms
+    const platformIds = platforms.map(p => p.id);
+    let posts: any[] = [];
+    let attempts: any[] = [];
+    
+    if (platformIds.length > 0) {
+      const { inArray } = require('drizzle-orm');
+      posts = await db.select().from(require('../db/schema').platformPosts).where(inArray(require('../db/schema').platformPosts.campaignPlatformId, platformIds));
+      
+      const postIds = posts.map(p => p.id);
+      if (postIds.length > 0) {
+        attempts = await db.select().from(require('../db/schema').publishAttempts).where(inArray(require('../db/schema').publishAttempts.platformPostId, postIds));
+      }
+    }
+
     return {
       campaign: campaignList[0],
       platforms,
       media,
+      posts,
+      attempts,
     };
   }
 
