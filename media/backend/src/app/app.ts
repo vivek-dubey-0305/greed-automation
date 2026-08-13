@@ -12,6 +12,7 @@ import { oauthRoutes } from '../routes/oauth.routes';
 export function buildApp() {
   const app = Fastify({
     loggerInstance: logger,
+    trustProxy: true,
     genReqId: () => uuidv4(),
   });
 

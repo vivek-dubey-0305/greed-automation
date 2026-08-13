@@ -45,5 +45,9 @@ export const api = {
 
   async getCampaign(campaignId: string) {
     return this.get(`/campaigns/${campaignId}`);
+  },
+
+  async approvePost(postId: string) {
+    return this.post(`/campaigns/posts/${postId}/approve`, {});
   }
 };

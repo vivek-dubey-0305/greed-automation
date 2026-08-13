@@ -58,6 +58,13 @@ export default function ResultScreen() {
                  retryable: false
                }
              });
+          } else if (post.status === 'AWAITING_APPROVAL') {
+             // We already approved in preview.tsx, so tell backend to approve and publish
+             updatePlatformPost(platform, { status: 'PUBLISHING' });
+             allDone = false;
+             
+             // Fire and forget approve call
+             api.approvePost(post.id).catch(err => console.error('Failed to auto-approve post:', err));
           } else {
              updatePlatformPost(platform, { status: 'PUBLISHING' });
              allDone = false;
