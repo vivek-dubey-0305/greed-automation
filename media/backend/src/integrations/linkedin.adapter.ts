@@ -18,7 +18,7 @@ export class LinkedInAdapter implements PlatformAdapter {
   };
 
   getAuthorizationUrl(state: string, redirectUri: string): string {
-    const scopes = ['w_member_social', 'r_liteprofile']; // Standard LinkedIn scopes for posting
+    const scopes = ['w_member_social', 'openid', 'profile']; // Modern LinkedIn scopes
     return `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${env.LINKEDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scopes.join('%20')}`;
   }
 
@@ -41,8 +41,8 @@ export class LinkedInAdapter implements PlatformAdapter {
       throw new Error(`LinkedIn OAuth Error: ${tokenData.error_description || tokenData.error}`);
     }
 
-    // 2. Fetch user profile to get externalAccountId (member URN)
-    const profileRes = await fetch('https://api.linkedin.com/v2/me', {
+    // 2. Fetch user profile (OpenID Connect UserInfo endpoint)
+    const profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {
       headers: { 'Authorization': `Bearer ${tokenData.access_token}` }
     });
     
@@ -55,8 +55,8 @@ export class LinkedInAdapter implements PlatformAdapter {
       accessToken: tokenData.access_token,
       refreshToken: tokenData.refresh_token,
       expiresIn: tokenData.expires_in,
-      externalAccountId: `urn:li:person:${profileData.id}`,
-      displayName: `${profileData.localizedFirstName} ${profileData.localizedLastName}`,
+      externalAccountId: `urn:li:person:${profileData.sub}`, // OIDC returns 'sub' instead of 'id'
+      displayName: `${profileData.given_name} ${profileData.family_name}`,
     };
   }
 
